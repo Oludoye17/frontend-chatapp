@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, authAPI } from '../services/api';
-import socketService from '../services/socket';
+
+import socketService from '../services/socket.ts';
 
 interface AuthContextType {
   user: User | null;

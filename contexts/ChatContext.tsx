@@ -1,7 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 
-import { useAuth } from './AuthContext';
-import socketService from '../services/socket';
+import { useAuth } from "./AuthContext";
+import socketService from "../src/services/socket";
 
 interface ChatContextType {
   conversations: Conversation[];
@@ -22,7 +28,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 export const useChat = () => {
   const context = useContext(ChatContext);
   if (context === undefined) {
-    throw new Error('useChat must be used within a ChatProvider');
+    throw new Error("useChat must be used within a ChatProvider");
   }
   return context;
 };
@@ -34,10 +40,14 @@ interface ChatProviderProps {
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversation, setActiveConversationState] = useState<string | null>(null);
+  const [activeConversation, setActiveConversationState] = useState<
+    string | null
+  >(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
-  const [typingUsers, setTypingUsers] = useState<{ [key: string]: boolean }>({});
+  const [typingUsers, setTypingUsers] = useState<{ [key: string]: boolean }>(
+    {}
+  );
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
@@ -63,12 +73,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           updatedAt: new Date().toISOString(),
           isRead: false,
           isDelivered: true,
-          messageType: messageData.messageType || 'text'
+          messageType: messageData.messageType || "text",
         };
 
         // Add to messages if this is the active conversation
         if (activeConversation === messageData.sender) {
-          setMessages(prev => [...prev, newMessage]);
+          setMessages((prev) => [...prev, newMessage]);
         }
 
         // Refresh conversations to update last message
@@ -77,22 +87,22 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
       // Listen for message delivery confirmation
       socketService.onMessageDelivered((messageData) => {
-        console.log('Message delivered:', messageData);
+        console.log("Message delivered:", messageData);
       });
 
       // Listen for typing indicators
       socketService.onUserTyping((data) => {
-        setTypingUsers(prev => ({
+        setTypingUsers((prev) => ({
           ...prev,
-          [data.sender]: data.isTyping
+          [data.sender]: data.isTyping,
         }));
 
         // Clear typing indicator after 3 seconds
         if (data.isTyping) {
           setTimeout(() => {
-            setTypingUsers(prev => ({
+            setTypingUsers((prev) => ({
               ...prev,
-              [data.sender]: false
+              [data.sender]: false,
             }));
           }, 3000);
         }
@@ -105,10 +115,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
 
     return () => {
-      socketService.off('receiveMessage');
-      socketService.off('messageDelivered');
-      socketService.off('userTyping');
-      socketService.off('userOnline');
+      socketService.off("receiveMessage");
+      socketService.off("messageDelivered");
+      socketService.off("userTyping");
+      socketService.off("userOnline");
     };
   }, [user, activeConversation]);
 
@@ -117,7 +127,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       const response = await messageAPI.getConversations();
       setConversations(response.data);
     } catch (error) {
-      console.error('Error loading conversations:', error);
+      console.error("Error loading conversations:", error);
     }
   };
 
@@ -137,17 +147,17 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       const response = await messageAPI.getConversation(userId, page);
-      
+
       if (page === 1) {
         setMessages(response.data.messages);
       } else {
-        setMessages(prev => [...response.data.messages, ...prev]);
+        setMessages((prev) => [...response.data.messages, ...prev]);
       }
-      
+
       setHasMoreMessages(response.data.hasMore);
       setCurrentPage(page);
     } catch (error) {
-      console.error('Error loading messages:', error);
+      console.error("Error loading messages:", error);
     } finally {
       setLoading(false);
     }
@@ -169,20 +179,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         sender: user,
         recipient: { _id: recipient } as User,
         content,
-        messageType: 'text',
+        messageType: "text",
         isRead: false,
         isDelivered: false,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
 
-      setMessages(prev => [...prev, tempMessage]);
+      setMessages((prev) => [...prev, tempMessage]);
 
       // Send via API
       const response = await messageAPI.sendMessage({
         recipient,
         content,
-        messageType: 'text'
+        messageType: "text",
       });
 
       // Send via socket
@@ -190,44 +200,46 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         sender: user._id,
         recipient,
         content,
-        messageType: 'text'
+        messageType: "text",
       });
 
       // Replace temp message with real one
-      setMessages(prev => 
-        prev.map(msg => 
-          msg._id === tempMessage._id ? response.data : msg
-        )
+      setMessages((prev) =>
+        prev.map((msg) => (msg._id === tempMessage._id ? response.data : msg))
       );
 
       // Refresh conversations
       refreshConversations();
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
       // Remove failed message
-      setMessages(prev => prev.filter(msg => msg._id !== Date.now().toString()));
+      setMessages((prev) =>
+        prev.filter((msg) => msg._id !== Date.now().toString())
+      );
     }
   };
 
   const markAsRead = async (userId: string) => {
     try {
       await messageAPI.markAsRead(userId);
-      
+
       // Update local messages
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.sender._id === userId ? { ...msg, isRead: true, readAt: new Date().toISOString() } : msg
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.sender._id === userId
+            ? { ...msg, isRead: true, readAt: new Date().toISOString() }
+            : msg
         )
       );
 
       // Update conversations
-      setConversations(prev => 
-        prev.map(conv => 
+      setConversations((prev) =>
+        prev.map((conv) =>
           conv.user._id === userId ? { ...conv, unreadCount: 0 } : conv
         )
       );
     } catch (error) {
-      console.error('Error marking messages as read:', error);
+      console.error("Error marking messages as read:", error);
     }
   };
 
